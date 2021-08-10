@@ -84,7 +84,7 @@ async function getCommit(githubToken) {
     // if (!githubToken) {
     //     throw new Error(`No commit information is found in payload: ${JSON.stringify(github.context.payload, null, 2)} and 'github-token' input is not set`);
     // }
-    return await getHeadCommit(githubToken || github.token);
+    return await getHeadCommit(githubToken || process.env.GITHUB_TOKEN);
     /* eslint-enable @typescript-eslint/camelcase */
 }
 function extractCargoResult(output) {
