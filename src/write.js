@@ -66,6 +66,8 @@ function biggerIsBetter(tool) {
             return false;
         case 'catch2':
             return false;
+        case 'roblox':
+            return true;
     }
 }
 function findAlerts(curSuite, prevSuite, threshold) {
