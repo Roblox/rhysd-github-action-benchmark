@@ -460,6 +460,40 @@ function extractCatch2Result(output: string): BenchmarkResult[] {
     return ret;
 }
 
+function extractRobloxResult(output: string): BenchmarkResult[] {
+    const lines = output.split(/\r?\n/g);
+    const ret = [];
+    // Example:
+    //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer2 with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
+    const reExtract = /^ x ([0-9,.]+)\s+(\S+)\s+((?:±|\+-)[^%]+%) \((\d+) runs sampled\)(\(roblox-cli version ([\d.]+)\))?$/; // Note: Extract parts after benchmark name
+    const reComma = /,/g;
+
+    for (const line of lines) {
+        const idx = line.lastIndexOf(' x ');
+        if (idx === -1) {
+            continue;
+        }
+        const name = line.slice(0, idx);
+        const rest = line.slice(idx);
+
+        const m = rest.match(reExtract);
+        if (m === null) {
+            continue;
+        }
+
+        const value = parseFloat(m[1].replace(reComma, ''));
+        const unit = m[2];
+        const range = m[3];
+        const extra = `${m[4]} samples\nroblox-cli version: ${m[6] || 'unknown'}`;
+
+        ret.push({ name, value, range, unit, extra });
+    }
+
+    return ret;
+}
+
 export async function extractResult(config: Config): Promise<Benchmark> {
     const output = await fs.readFile(config.outputFilePath, 'utf8');
     const { tool, githubToken } = config;
@@ -483,6 +517,9 @@ export async function extractResult(config: Config): Promise<Benchmark> {
             break;
         case 'catch2':
             benches = extractCatch2Result(output);
+            break;
+        case 'roblox':
+            benches = extractRobloxResult(output);
             break;
         default:
             throw new Error(`FATAL: Unexpected tool: '${tool}'`);

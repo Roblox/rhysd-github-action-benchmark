@@ -220,6 +220,53 @@ describe('extractResult()', function() {
                 },
             ],
         },
+        {
+            tool: 'roblox',
+            expected: [
+                {
+                    name: 'fib(10)',
+                    range: '±0.74%',
+                    unit: 'ops/sec',
+                    value: 1431759,
+                    extra: '93 samples\nroblox-cli version: 123.456',
+                },
+                {
+                    name: 'fib(15)',
+                    range: '±0.74%',
+                    unit: 'ops/sec',
+                    value: 1431759,
+                    extra: '93 samples\nroblox-cli version: unknown',
+                },
+                {
+                    name: 'fib(20)',
+                    range: '±0.32%',
+                    unit: 'ops/sec',
+                    value: 12146,
+                    extra: '96 samples\nroblox-cli version: 123.456',
+                },
+                {
+                    name: 'fib(25)',
+                    range: '±0.32%',
+                    unit: 'ops/sec',
+                    value: 12146,
+                    extra: '96 samples\nroblox-cli version: unknown',
+                },
+                {
+                    name: 'createObjectBuffer with 200 comments',
+                    range: '±1.70%',
+                    unit: 'ops/sec',
+                    value: 81.61,
+                    extra: '69 samples\nroblox-cli version: 123.456',
+                },
+                {
+                    name: 'createObjectBuffer2 with 200 comments',
+                    range: '±1.70%',
+                    unit: 'ops/sec',
+                    value: 81.61,
+                    extra: '69 samples\nroblox-cli version: unknown',
+                },
+            ],
+        },
     ];
 
     for (const test of normalCases) {
