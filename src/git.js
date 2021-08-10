@@ -63,6 +63,15 @@ function getRemoteUrl(token) {
     }
     return `https://x-access-token:${token}@github.com/${fullName}.git`;
 }
+async function readCommitId(...options) {
+    core.debug(`Executing 'git rev-parse HEAD' with options '${options.join(' ')}'`);
+    let args = ['rev-parse', 'HEAD'];
+    if (options.length > 0) {
+        args = args.concat(options);
+    }
+    return cmd(...args);
+}
+exports.readCommitId = readCommitId;
 async function push(token, branch, ...options) {
     core.debug(`Executing 'git push' to branch '${branch}' with token and options '${options.join(' ')}'`);
     const remote = getRemoteUrl(token);
