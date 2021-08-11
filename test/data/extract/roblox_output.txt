@@ -2,6 +2,7 @@ fib(10) x 1,431,759 ops/sec ±0.74% (93 runs sampled)(roblox-cli version 123.456
 fib(15) x 1,431,759 ops/sec ±0.74% (93 runs sampled)
 fib(20) x 12,146 ops/sec ±0.32% (96 runs sampled)(roblox-cli version 123.456)
 fib(25) x 12,146 ops/sec ±0.32% (96 runs sampled)
+fib(30) x 12,146 ops/sec ±0.32% (96 runs sampled)(roblox-cli version ?)
 
 this x line should be ignored
 

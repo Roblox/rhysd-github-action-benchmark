@@ -467,7 +467,7 @@ function extractRobloxResult(output: string): BenchmarkResult[] {
     //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
     //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
     //   createObjectBuffer2 with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
-    const reExtract = /^ x ([0-9,.]+)\s+(\S+)\s+((?:±|\+-)[^%]+%) \((\d+) runs sampled\)(\(roblox-cli version ([\d.]+)\))?$/; // Note: Extract parts after benchmark name
+    const reExtract = /^ x ([0-9,.]+)\s+(\S+)\s+((?:±|\+-)[^%]+%) \((\d+) runs sampled\)(\(roblox-cli version ([\d.?]+)\))?$/; // Note: Extract parts after benchmark name
     const reComma = /,/g;
 
     for (const line of lines) {

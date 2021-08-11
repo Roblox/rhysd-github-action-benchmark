@@ -252,6 +252,13 @@ describe('extractResult()', function() {
                     extra: '96 samples\nroblox-cli version: unknown',
                 },
                 {
+                    name: 'fib(30)',
+                    range: '±0.32%',
+                    unit: 'ops/sec',
+                    value: 12146,
+                    extra: '96 samples\nroblox-cli version: ?',
+                },
+                {
                     name: 'createObjectBuffer with 200 comments',
                     range: '±1.70%',
                     unit: 'ops/sec',
