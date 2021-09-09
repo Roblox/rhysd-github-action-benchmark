@@ -27428,5 +27428,5 @@ window.BENCHMARK_DATA = {
       }
     ]
   },
-  "repoUrl": "https://github.com/rhysd/github-action-benchmark"
+  "repoUrl": "https://github.com/Roblox/rhysd-github-action-benchmark"
 }
