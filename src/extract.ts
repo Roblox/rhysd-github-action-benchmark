@@ -588,7 +588,6 @@ export async function extractResult(config: Config): Promise<Benchmark> {
     return {
         commit,
         date: Date.now(),
-        tool,
         ...benchmark,
     };
 }
