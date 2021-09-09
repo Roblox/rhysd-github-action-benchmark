@@ -3,12 +3,32 @@ import * as github from '@actions/github';
 import { Config, ToolType } from './config';
 import { WebhookPayload } from '@actions/github/lib/interfaces';
 
-export interface BenchmarkResult {
+export type BenchmarkResult = RobloxBenchmarkResult | OtherBenchmarkResult;
+
+export interface BaseBenchmarkResult {
+    type?: unknown;
     name: string;
     value: number;
     range?: string;
     unit: string;
     extra?: string;
+}
+
+export enum RobloxUnit {
+    OPERATIONS_PER_SECOND = 'ops/sec',
+    MS_PER_OPERATION = 'ms/op',
+}
+
+const isRobloxUnit = (unit: string): unit is RobloxUnit =>
+    Object.values(RobloxUnit).includes((unit as unknown) as RobloxUnit);
+
+export interface RobloxBenchmarkResult extends BaseBenchmarkResult {
+    type: 'roblox';
+    unit: RobloxUnit;
+}
+
+export interface OtherBenchmarkResult extends BaseBenchmarkResult {
+    type?: undefined;
 }
 
 interface GitHubUser {
@@ -28,11 +48,22 @@ interface Commit {
     url: string;
 }
 
-export interface Benchmark {
+export type Benchmark = RobloxBenchmark | OtherBenchmark;
+
+export interface BenchmarkBase {
     commit: Commit;
     date: number;
     tool: ToolType;
     benches: BenchmarkResult[];
+}
+
+export interface RobloxBenchmark extends BenchmarkBase {
+    tool: 'roblox';
+    benches: RobloxBenchmarkResult[];
+}
+export interface OtherBenchmark extends BenchmarkBase {
+    tool: Exclude<ToolType, 'roblox'>;
+    benches: OtherBenchmarkResult[];
 }
 
 export interface GoogleCppBenchmarkJson {
@@ -218,7 +249,7 @@ async function getCommit(githubToken?: string): Promise<Commit> {
     /* eslint-enable @typescript-eslint/camelcase */
 }
 
-function extractCargoResult(output: string): BenchmarkResult[] {
+function extractCargoResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -247,7 +278,7 @@ function extractCargoResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractGoResult(output: string): BenchmarkResult[] {
+function extractGoResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -278,7 +309,7 @@ function extractGoResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractBenchmarkJsResult(output: string): BenchmarkResult[] {
+function extractBenchmarkJsResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -311,7 +342,7 @@ function extractBenchmarkJsResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractPytestResult(output: string): BenchmarkResult[] {
+function extractPytestResult(output: string): OtherBenchmarkResult[] {
     try {
         const json: PytestBenchmarkJson = JSON.parse(output);
         return json.benchmarks.map(bench => {
@@ -331,7 +362,7 @@ function extractPytestResult(output: string): BenchmarkResult[] {
     }
 }
 
-function extractGoogleCppResult(output: string): BenchmarkResult[] {
+function extractGoogleCppResult(output: string): OtherBenchmarkResult[] {
     let json: GoogleCppBenchmarkJson;
     try {
         json = JSON.parse(output);
@@ -349,7 +380,7 @@ function extractGoogleCppResult(output: string): BenchmarkResult[] {
     });
 }
 
-function extractCatch2Result(output: string): BenchmarkResult[] {
+function extractCatch2Result(output: string): OtherBenchmarkResult[] {
     // Example:
 
     // benchmark name samples       iterations    estimated <-- Start benchmark section
@@ -373,7 +404,7 @@ function extractCatch2Result(output: string): BenchmarkResult[] {
         return [lines.pop() ?? null, ++lnum];
     }
 
-    function extractBench(): BenchmarkResult | null {
+    function extractBench(): OtherBenchmarkResult | null {
         const startLine = nextLine()[0];
         if (startLine === null) {
             return null;
@@ -460,9 +491,9 @@ function extractCatch2Result(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractRobloxResult(output: string): BenchmarkResult[] {
+function extractRobloxResult(output: string): RobloxBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
-    const ret = [];
+    const ret = new Array<RobloxBenchmarkResult>();
     // Example:
     //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
     //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
@@ -488,7 +519,9 @@ function extractRobloxResult(output: string): BenchmarkResult[] {
         const range = m[3];
         const extra = `${m[4]} samples\nroblox-cli version: ${m[6] || 'unknown'}`;
 
-        ret.push({ name, value, range, unit, extra });
+        if (isRobloxUnit(unit)) {
+            ret.push({ name, value, range, unit, extra, type: 'roblox' });
+        }
     }
 
     return ret;
@@ -497,35 +530,56 @@ function extractRobloxResult(output: string): BenchmarkResult[] {
 export async function extractResult(config: Config): Promise<Benchmark> {
     const output = await fs.readFile(config.outputFilePath, 'utf8');
     const { tool, githubToken } = config;
-    let benches: BenchmarkResult[];
+    let benchmark: Pick<RobloxBenchmark, 'tool' | 'benches'> | Pick<OtherBenchmark, 'tool' | 'benches'>;
 
     switch (tool) {
         case 'cargo':
-            benches = extractCargoResult(output);
+            benchmark = {
+                tool,
+                benches: extractCargoResult(output),
+            };
             break;
         case 'go':
-            benches = extractGoResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoResult(output),
+            };
             break;
         case 'benchmarkjs':
-            benches = extractBenchmarkJsResult(output);
+            benchmark = {
+                tool,
+                benches: extractBenchmarkJsResult(output),
+            };
             break;
         case 'pytest':
-            benches = extractPytestResult(output);
+            benchmark = {
+                tool,
+                benches: extractPytestResult(output),
+            };
             break;
         case 'googlecpp':
-            benches = extractGoogleCppResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoogleCppResult(output),
+            };
             break;
         case 'catch2':
-            benches = extractCatch2Result(output);
+            benchmark = {
+                tool,
+                benches: extractCatch2Result(output),
+            };
             break;
         case 'roblox':
-            benches = extractRobloxResult(output);
+            benchmark = {
+                tool,
+                benches: extractRobloxResult(output),
+            };
             break;
         default:
             throw new Error(`FATAL: Unexpected tool: '${tool}'`);
     }
 
-    if (benches.length === 0) {
+    if (benchmark.benches.length === 0) {
         throw new Error(`No benchmark result was found in ${config.outputFilePath}. Benchmark output was '${output}'`);
     }
 
@@ -535,6 +589,6 @@ export async function extractResult(config: Config): Promise<Benchmark> {
         commit,
         date: Date.now(),
         tool,
-        benches,
+        ...benchmark,
     };
 }
