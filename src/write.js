@@ -13,6 +13,7 @@ const io = __importStar(require("@actions/io"));
 const core = __importStar(require("@actions/core"));
 const github = __importStar(require("@actions/github"));
 const git = __importStar(require("./git"));
+const extract_1 = require("./extract");
 const default_index_html_1 = require("./default_index_html");
 exports.SCRIPT_PREFIX = 'window.BENCHMARK_DATA = ';
 const DEFAULT_DATA_JSON = {
@@ -52,7 +53,7 @@ async function addIndexHtmlIfNeeded(dir) {
     await git.cmd('add', indexHtml);
     console.log('Created default index.html at', indexHtml);
 }
-function biggerIsBetter(tool) {
+function biggerIsBetter(tool, bench) {
     switch (tool) {
         case 'cargo':
             return false;
@@ -67,6 +68,14 @@ function biggerIsBetter(tool) {
         case 'catch2':
             return false;
         case 'roblox':
+            if (bench.type === 'roblox') {
+                switch (bench.unit) {
+                    case extract_1.RobloxUnit.MS_PER_OPERATION:
+                        return false;
+                    case extract_1.RobloxUnit.OPERATIONS_PER_SECOND:
+                        return true;
+                }
+            }
             return true;
     }
 }
@@ -79,7 +88,7 @@ function findAlerts(curSuite, prevSuite, threshold) {
             core.debug(`Skipped because benchmark '${current.name}' is not found in previous benchmarks`);
             continue;
         }
-        const ratio = biggerIsBetter(curSuite.tool)
+        const ratio = biggerIsBetter(curSuite.tool, current)
             ? prev.value / current.value // e.g. current=100, prev=200
             : current.value / prev.value; // e.g. current=200, prev=100
         if (ratio > threshold) {
@@ -134,7 +143,7 @@ function buildComment(benchName, curSuite, prevSuite) {
         let line;
         const prev = prevSuite.benches.find(i => i.name === current.name);
         if (prev) {
-            const ratio = biggerIsBetter(curSuite.tool)
+            const ratio = biggerIsBetter(curSuite.tool, current)
                 ? prev.value / current.value // e.g. current=100, prev=200
                 : current.value / prev.value;
             line = `| \`${current.name}\` | ${strVal(current)} | ${strVal(prev)} | \`${floatStr(ratio)}\` |`;

@@ -9,6 +9,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
 const github = __importStar(require("@actions/github"));
+var RobloxUnit;
+(function (RobloxUnit) {
+    RobloxUnit["OPERATIONS_PER_SECOND"] = "ops/sec";
+    RobloxUnit["MS_PER_OPERATION"] = "ms/op";
+})(RobloxUnit = exports.RobloxUnit || (exports.RobloxUnit = {}));
+const isRobloxUnit = (unit) => Object.values(RobloxUnit).includes(unit);
 function getHumanReadableUnitValue(seconds) {
     if (seconds < 1.0e-6) {
         return [seconds * 1e9, 'nsec'];
@@ -286,7 +292,7 @@ function extractCatch2Result(output) {
 }
 function extractRobloxResult(output) {
     const lines = output.split(/\r?\n/g);
-    const ret = [];
+    const ret = new Array();
     // Example:
     //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
     //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
@@ -308,48 +314,70 @@ function extractRobloxResult(output) {
         const unit = m[2];
         const range = m[3];
         const extra = `${m[4]} samples\nroblox-cli version: ${m[6] || 'unknown'}`;
-        ret.push({ name, value, range, unit, extra });
+        if (isRobloxUnit(unit)) {
+            ret.push({ name, value, range, unit, extra, type: 'roblox' });
+        }
     }
     return ret;
 }
 async function extractResult(config) {
     const output = await fs_1.promises.readFile(config.outputFilePath, 'utf8');
     const { tool, githubToken } = config;
-    let benches;
+    let benchmark;
     switch (tool) {
         case 'cargo':
-            benches = extractCargoResult(output);
+            benchmark = {
+                tool,
+                benches: extractCargoResult(output),
+            };
             break;
         case 'go':
-            benches = extractGoResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoResult(output),
+            };
             break;
         case 'benchmarkjs':
-            benches = extractBenchmarkJsResult(output);
+            benchmark = {
+                tool,
+                benches: extractBenchmarkJsResult(output),
+            };
             break;
         case 'pytest':
-            benches = extractPytestResult(output);
+            benchmark = {
+                tool,
+                benches: extractPytestResult(output),
+            };
             break;
         case 'googlecpp':
-            benches = extractGoogleCppResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoogleCppResult(output),
+            };
             break;
         case 'catch2':
-            benches = extractCatch2Result(output);
+            benchmark = {
+                tool,
+                benches: extractCatch2Result(output),
+            };
             break;
         case 'roblox':
-            benches = extractRobloxResult(output);
+            benchmark = {
+                tool,
+                benches: extractRobloxResult(output),
+            };
             break;
         default:
             throw new Error(`FATAL: Unexpected tool: '${tool}'`);
     }
-    if (benches.length === 0) {
+    if (benchmark.benches.length === 0) {
         throw new Error(`No benchmark result was found in ${config.outputFilePath}. Benchmark output was '${output}'`);
     }
     const commit = await getCommit(githubToken);
     return {
         commit,
         date: Date.now(),
-        tool,
-        benches,
+        ...benchmark,
     };
 }
 exports.extractResult = extractResult;
