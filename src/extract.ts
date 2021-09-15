@@ -17,6 +17,10 @@ export interface BaseBenchmarkResult {
 export enum RobloxUnit {
     OPERATIONS_PER_SECOND = 'ops/sec',
     MS_PER_OPERATION = 'ms/op',
+    EXECUTIONS_PER_SECOND = 'executions/sec',
+    MISSES_PER_SECOND = 'misses/sec',
+    READS_PER_SECOND = 'reads/sec',
+    WRITES_PER_SECOND = 'writes/sec',
 }
 
 const isRobloxUnit = (unit: string): unit is RobloxUnit =>

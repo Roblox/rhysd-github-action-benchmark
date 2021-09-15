@@ -74,8 +74,12 @@ function biggerIsBetter(tool: ToolType, bench: BenchmarkResult): boolean {
             if (bench.type === 'roblox') {
                 switch (bench.unit) {
                     case RobloxUnit.MS_PER_OPERATION:
+                    case RobloxUnit.MISSES_PER_SECOND:
                         return false;
                     case RobloxUnit.OPERATIONS_PER_SECOND:
+                    case RobloxUnit.EXECUTIONS_PER_SECOND:
+                    case RobloxUnit.READS_PER_SECOND:
+                    case RobloxUnit.WRITES_PER_SECOND:
                         return true;
                 }
             }
