@@ -75,6 +75,7 @@ function biggerIsBetter(tool: ToolType, bench: BenchmarkResult): boolean {
                 switch (bench.unit) {
                     case RobloxUnit.MS_PER_OPERATION:
                     case RobloxUnit.MISSES_PER_SECOND:
+                    case RobloxUnit.MISPREDICTIONS_PER_SECOND:
                         return false;
                     case RobloxUnit.OPERATIONS_PER_SECOND:
                     case RobloxUnit.EXECUTIONS_PER_SECOND:
