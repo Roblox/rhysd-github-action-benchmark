@@ -71,8 +71,12 @@ function biggerIsBetter(tool, bench) {
             if (bench.type === 'roblox') {
                 switch (bench.unit) {
                     case extract_1.RobloxUnit.MS_PER_OPERATION:
+                    case extract_1.RobloxUnit.MISSES_PER_SECOND:
                         return false;
                     case extract_1.RobloxUnit.OPERATIONS_PER_SECOND:
+                    case extract_1.RobloxUnit.EXECUTIONS_PER_SECOND:
+                    case extract_1.RobloxUnit.READS_PER_SECOND:
+                    case extract_1.RobloxUnit.WRITES_PER_SECOND:
                         return true;
                 }
             }

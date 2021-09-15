@@ -13,6 +13,10 @@ var RobloxUnit;
 (function (RobloxUnit) {
     RobloxUnit["OPERATIONS_PER_SECOND"] = "ops/sec";
     RobloxUnit["MS_PER_OPERATION"] = "ms/op";
+    RobloxUnit["EXECUTIONS_PER_SECOND"] = "executions/sec";
+    RobloxUnit["MISSES_PER_SECOND"] = "misses/sec";
+    RobloxUnit["READS_PER_SECOND"] = "reads/sec";
+    RobloxUnit["WRITES_PER_SECOND"] = "writes/sec";
 })(RobloxUnit = exports.RobloxUnit || (exports.RobloxUnit = {}));
 const isRobloxUnit = (unit) => Object.values(RobloxUnit).includes(unit);
 function getHumanReadableUnitValue(seconds) {
