@@ -12,12 +12,12 @@ const github = __importStar(require("@actions/github"));
 var RobloxUnit;
 (function (RobloxUnit) {
     RobloxUnit["OPERATIONS_PER_SECOND"] = "ops/sec";
+    RobloxUnit["FRAMES_PER_SECOND"] = "fps";
     RobloxUnit["MS_PER_OPERATION"] = "ms/op";
-    RobloxUnit["EXECUTIONS_PER_SECOND"] = "executions/sec";
-    RobloxUnit["MISSES_PER_SECOND"] = "misses/sec";
-    RobloxUnit["MISPREDICTIONS_PER_SECOND"] = "mispredictions/sec/sec";
-    RobloxUnit["READS_PER_SECOND"] = "reads/sec";
-    RobloxUnit["WRITES_PER_SECOND"] = "writes/sec";
+    RobloxUnit["EXECUTIONS"] = "executions";
+    RobloxUnit["READS"] = "reads";
+    RobloxUnit["WRITES"] = "executions";
+    RobloxUnit["MISSES_PER_OP"] = "misses/op";
 })(RobloxUnit = exports.RobloxUnit || (exports.RobloxUnit = {}));
 const isRobloxUnit = (unit) => Object.values(RobloxUnit).includes(unit);
 function getHumanReadableUnitValue(seconds) {
