@@ -16,12 +16,12 @@ export interface BaseBenchmarkResult {
 
 export enum RobloxUnit {
     OPERATIONS_PER_SECOND = 'ops/sec',
+    FRAMES_PER_SECOND = 'fps',
     MS_PER_OPERATION = 'ms/op',
-    EXECUTIONS_PER_SECOND = 'executions/sec',
-    MISSES_PER_SECOND = 'misses/sec',
-    MISPREDICTIONS_PER_SECOND = 'mispredictions/sec/sec',
-    READS_PER_SECOND = 'reads/sec',
-    WRITES_PER_SECOND = 'writes/sec',
+    EXECUTIONS = 'executions',
+    READS = 'reads',
+    WRITES = 'executions',
+    MISSES_PER_OP = 'misses/op',
 }
 
 const isRobloxUnit = (unit: string): unit is RobloxUnit =>
