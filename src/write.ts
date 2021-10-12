@@ -4,7 +4,7 @@ import * as io from '@actions/io';
 import * as core from '@actions/core';
 import * as github from '@actions/github';
 import * as git from './git';
-import { Benchmark, BenchmarkResult } from './extract';
+import { Benchmark, BenchmarkResult, RobloxUnit } from './extract';
 import { Config, ToolType } from './config';
 import { DEFAULT_INDEX_HTML } from './default_index_html';
 
@@ -56,7 +56,7 @@ async function addIndexHtmlIfNeeded(dir: string) {
     console.log('Created default index.html at', indexHtml);
 }
 
-function biggerIsBetter(tool: ToolType): boolean {
+function biggerIsBetter(tool: ToolType, bench: BenchmarkResult): boolean {
     switch (tool) {
         case 'cargo':
             return false;
@@ -70,6 +70,21 @@ function biggerIsBetter(tool: ToolType): boolean {
             return false;
         case 'catch2':
             return false;
+        case 'roblox':
+            if (bench.type === 'roblox') {
+                switch (bench.unit) {
+                    case RobloxUnit.MS_PER_OPERATION:
+                    case RobloxUnit.EXECUTIONS:
+                    case RobloxUnit.READS:
+                    case RobloxUnit.WRITES:
+                    case RobloxUnit.MISSES_PER_OP:
+                        return false;
+                    case RobloxUnit.OPERATIONS_PER_SECOND:
+                    case RobloxUnit.FRAMES_PER_SECOND:
+                        return true;
+                }
+            }
+            return true;
     }
 }
 
@@ -84,13 +99,13 @@ function findAlerts(curSuite: Benchmark, prevSuite: Benchmark, threshold: number
 
     const alerts = [];
     for (const current of curSuite.benches) {
-        const prev = prevSuite.benches.find(b => b.name === current.name);
+        const prev = (prevSuite.benches as Array<BenchmarkResult>).find(b => b.name === current.name);
         if (prev === undefined) {
             core.debug(`Skipped because benchmark '${current.name}' is not found in previous benchmarks`);
             continue;
         }
 
-        const ratio = biggerIsBetter(curSuite.tool)
+        const ratio = biggerIsBetter(curSuite.tool, current)
             ? prev.value / current.value // e.g. current=100, prev=200
             : current.value / prev.value; // e.g. current=200, prev=100
 
@@ -157,10 +172,10 @@ function buildComment(benchName: string, curSuite: Benchmark, prevSuite: Benchma
 
     for (const current of curSuite.benches) {
         let line;
-        const prev = prevSuite.benches.find(i => i.name === current.name);
+        const prev = (prevSuite.benches as Array<BenchmarkResult>).find(i => i.name === current.name);
 
         if (prev) {
-            const ratio = biggerIsBetter(curSuite.tool)
+            const ratio = biggerIsBetter(curSuite.tool, current)
                 ? prev.value / current.value // e.g. current=100, prev=200
                 : current.value / prev.value;
 

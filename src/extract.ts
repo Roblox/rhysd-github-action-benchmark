@@ -1,13 +1,39 @@
 import { promises as fs } from 'fs';
 import * as github from '@actions/github';
 import { Config, ToolType } from './config';
+import { WebhookPayload } from '@actions/github/lib/interfaces';
 
-export interface BenchmarkResult {
+export type BenchmarkResult = RobloxBenchmarkResult | OtherBenchmarkResult;
+
+export interface BaseBenchmarkResult {
+    type?: unknown;
     name: string;
     value: number;
     range?: string;
     unit: string;
     extra?: string;
+}
+
+export enum RobloxUnit {
+    OPERATIONS_PER_SECOND = 'ops/sec',
+    FRAMES_PER_SECOND = 'fps',
+    MS_PER_OPERATION = 'ms/op',
+    EXECUTIONS = 'executions',
+    READS = 'reads',
+    WRITES = 'writes',
+    MISSES_PER_OP = 'misses/op',
+}
+
+const isRobloxUnit = (unit: string): unit is RobloxUnit =>
+    Object.values(RobloxUnit).includes((unit as unknown) as RobloxUnit);
+
+export interface RobloxBenchmarkResult extends BaseBenchmarkResult {
+    type: 'roblox';
+    unit: RobloxUnit;
+}
+
+export interface OtherBenchmarkResult extends BaseBenchmarkResult {
+    type?: undefined;
 }
 
 interface GitHubUser {
@@ -27,11 +53,22 @@ interface Commit {
     url: string;
 }
 
-export interface Benchmark {
+export type Benchmark = RobloxBenchmark | OtherBenchmark;
+
+export interface BenchmarkBase {
     commit: Commit;
     date: number;
     tool: ToolType;
     benches: BenchmarkResult[];
+}
+
+export interface RobloxBenchmark extends BenchmarkBase {
+    tool: 'roblox';
+    benches: RobloxBenchmarkResult[];
+}
+export interface OtherBenchmark extends BenchmarkBase {
+    tool: Exclude<ToolType, 'roblox'>;
+    benches: OtherBenchmarkResult[];
 }
 
 export interface GoogleCppBenchmarkJson {
@@ -138,19 +175,8 @@ function getHumanReadableUnitValue(seconds: number): [number, string] {
     }
 }
 
-function getCommit(): Commit {
+function getCommitFromPr(pr: Required<WebhookPayload>['pull_request']): Commit {
     /* eslint-disable @typescript-eslint/camelcase */
-    if (github.context.payload.head_commit) {
-        return github.context.payload.head_commit;
-    }
-
-    const pr = github.context.payload.pull_request;
-    if (!pr) {
-        throw new Error(
-            `No commit information is found in payload: ${JSON.stringify(github.context.payload, null, 2)}`,
-        );
-    }
-
     // On pull_request hook, head_commit is not available
     const message: string = pr.title;
     const id: string = pr.head.sha;
@@ -173,7 +199,62 @@ function getCommit(): Commit {
     /* eslint-enable @typescript-eslint/camelcase */
 }
 
-function extractCargoResult(output: string): BenchmarkResult[] {
+async function getHeadCommit(githubToken: string): Promise<Commit> {
+    const octocat = new github.GitHub(githubToken);
+    const { status, data } = await octocat.repos.getCommit({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        ref: github.context.ref,
+    });
+    if (status !== 200 && status !== 304) {
+        throw new Error(`Could not fetch the head commit. Received code: ${status}`);
+    }
+
+    const { commit } = data;
+
+    const author = {
+        name: commit.author.name,
+        username: commit.author.name, // XXX: Fallback, not correct
+    };
+    const committer = {
+        name: commit.committer.name,
+        username: commit.committer.name, // XXX: Fallback, not correct
+    };
+
+    return {
+        author,
+        committer,
+        id: data.sha,
+        message: commit.message,
+        timestamp: commit.author.date,
+        url: data.html_url,
+    };
+}
+
+async function getCommit(githubToken?: string): Promise<Commit> {
+    /* eslint-disable @typescript-eslint/camelcase */
+    if (github.context.payload.head_commit) {
+        return github.context.payload.head_commit;
+    }
+
+    if (github.context.payload.pull_request) {
+        return getCommitFromPr(github.context.payload.pull_request);
+    }
+
+    if (!githubToken) {
+        throw new Error(
+            `No commit information is found in payload: ${JSON.stringify(
+                github.context.payload,
+                null,
+                2,
+            )} and 'github-token' input is not set`,
+        );
+    }
+    return await getHeadCommit(githubToken);
+    /* eslint-enable @typescript-eslint/camelcase */
+}
+
+function extractCargoResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -202,7 +283,7 @@ function extractCargoResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractGoResult(output: string): BenchmarkResult[] {
+function extractGoResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -233,7 +314,7 @@ function extractGoResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractBenchmarkJsResult(output: string): BenchmarkResult[] {
+function extractBenchmarkJsResult(output: string): OtherBenchmarkResult[] {
     const lines = output.split(/\r?\n/g);
     const ret = [];
     // Example:
@@ -266,7 +347,7 @@ function extractBenchmarkJsResult(output: string): BenchmarkResult[] {
     return ret;
 }
 
-function extractPytestResult(output: string): BenchmarkResult[] {
+function extractPytestResult(output: string): OtherBenchmarkResult[] {
     try {
         const json: PytestBenchmarkJson = JSON.parse(output);
         return json.benchmarks.map(bench => {
@@ -286,7 +367,7 @@ function extractPytestResult(output: string): BenchmarkResult[] {
     }
 }
 
-function extractGoogleCppResult(output: string): BenchmarkResult[] {
+function extractGoogleCppResult(output: string): OtherBenchmarkResult[] {
     let json: GoogleCppBenchmarkJson;
     try {
         json = JSON.parse(output);
@@ -304,7 +385,7 @@ function extractGoogleCppResult(output: string): BenchmarkResult[] {
     });
 }
 
-function extractCatch2Result(output: string): BenchmarkResult[] {
+function extractCatch2Result(output: string): OtherBenchmarkResult[] {
     // Example:
 
     // benchmark name samples       iterations    estimated <-- Start benchmark section
@@ -328,7 +409,7 @@ function extractCatch2Result(output: string): BenchmarkResult[] {
         return [lines.pop() ?? null, ++lnum];
     }
 
-    function extractBench(): BenchmarkResult | null {
+    function extractBench(): OtherBenchmarkResult | null {
         const startLine = nextLine()[0];
         if (startLine === null) {
             return null;
@@ -415,44 +496,103 @@ function extractCatch2Result(output: string): BenchmarkResult[] {
     return ret;
 }
 
+function extractRobloxResult(output: string): RobloxBenchmarkResult[] {
+    const lines = output.split(/\r?\n/g);
+    const ret = new Array<RobloxBenchmarkResult>();
+    // Example:
+    //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer2 with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
+    const reExtract = /^ x ([0-9,.]+)\s+(\S+)\s+((?:±|\+-)[^%]+%) \((\d+) runs sampled\)(\(roblox-cli version ([\d.?]+)\))?$/; // Note: Extract parts after benchmark name
+    const reComma = /,/g;
+
+    for (const line of lines) {
+        const idx = line.lastIndexOf(' x ');
+        if (idx === -1) {
+            continue;
+        }
+        const name = line.slice(0, idx);
+        const rest = line.slice(idx);
+
+        const m = rest.match(reExtract);
+        if (m === null) {
+            continue;
+        }
+
+        const value = parseFloat(m[1].replace(reComma, ''));
+        const unit = m[2];
+        const range = m[3];
+        const extra = `${m[4]} samples\nroblox-cli version: ${m[6] || 'unknown'}`;
+
+        if (isRobloxUnit(unit)) {
+            ret.push({ name, value, range, unit, extra, type: 'roblox' });
+        }
+    }
+
+    return ret;
+}
+
 export async function extractResult(config: Config): Promise<Benchmark> {
     const output = await fs.readFile(config.outputFilePath, 'utf8');
-    const { tool } = config;
-    let benches: BenchmarkResult[];
+    const { tool, githubToken } = config;
+    let benchmark: Pick<RobloxBenchmark, 'tool' | 'benches'> | Pick<OtherBenchmark, 'tool' | 'benches'>;
 
     switch (tool) {
         case 'cargo':
-            benches = extractCargoResult(output);
+            benchmark = {
+                tool,
+                benches: extractCargoResult(output),
+            };
             break;
         case 'go':
-            benches = extractGoResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoResult(output),
+            };
             break;
         case 'benchmarkjs':
-            benches = extractBenchmarkJsResult(output);
+            benchmark = {
+                tool,
+                benches: extractBenchmarkJsResult(output),
+            };
             break;
         case 'pytest':
-            benches = extractPytestResult(output);
+            benchmark = {
+                tool,
+                benches: extractPytestResult(output),
+            };
             break;
         case 'googlecpp':
-            benches = extractGoogleCppResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoogleCppResult(output),
+            };
             break;
         case 'catch2':
-            benches = extractCatch2Result(output);
+            benchmark = {
+                tool,
+                benches: extractCatch2Result(output),
+            };
+            break;
+        case 'roblox':
+            benchmark = {
+                tool,
+                benches: extractRobloxResult(output),
+            };
             break;
         default:
             throw new Error(`FATAL: Unexpected tool: '${tool}'`);
     }
 
-    if (benches.length === 0) {
+    if (benchmark.benches.length === 0) {
         throw new Error(`No benchmark result was found in ${config.outputFilePath}. Benchmark output was '${output}'`);
     }
 
-    const commit = getCommit();
+    const commit = await getCommit(githubToken);
 
     return {
         commit,
         date: Date.now(),
-        tool,
-        benches,
+        ...benchmark,
     };
 }
