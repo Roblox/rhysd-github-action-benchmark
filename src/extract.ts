@@ -20,7 +20,7 @@ export enum RobloxUnit {
     MS_PER_OPERATION = 'ms/op',
     EXECUTIONS = 'executions',
     READS = 'reads',
-    WRITES = 'executions',
+    WRITES = 'writes',
     MISSES_PER_OP = 'misses/op',
 }
 
