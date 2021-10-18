@@ -9,6 +9,17 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const fs_1 = require("fs");
 const github = __importStar(require("@actions/github"));
+var RobloxUnit;
+(function (RobloxUnit) {
+    RobloxUnit["OPERATIONS_PER_SECOND"] = "ops/sec";
+    RobloxUnit["FRAMES_PER_SECOND"] = "fps";
+    RobloxUnit["MS_PER_OPERATION"] = "ms/op";
+    RobloxUnit["EXECUTIONS"] = "executions";
+    RobloxUnit["READS"] = "reads";
+    RobloxUnit["WRITES"] = "writes";
+    RobloxUnit["MISSES_PER_OP"] = "misses/op";
+})(RobloxUnit = exports.RobloxUnit || (exports.RobloxUnit = {}));
+const isRobloxUnit = (unit) => Object.values(RobloxUnit).includes(unit);
 function getHumanReadableUnitValue(seconds) {
     if (seconds < 1.0e-6) {
         return [seconds * 1e9, 'nsec'];
@@ -23,15 +34,8 @@ function getHumanReadableUnitValue(seconds) {
         return [seconds, 'sec'];
     }
 }
-function getCommit() {
+function getCommitFromPr(pr) {
     /* eslint-disable @typescript-eslint/camelcase */
-    if (github.context.payload.head_commit) {
-        return github.context.payload.head_commit;
-    }
-    const pr = github.context.payload.pull_request;
-    if (!pr) {
-        throw new Error(`No commit information is found in payload: ${JSON.stringify(github.context.payload, null, 2)}`);
-    }
     // On pull_request hook, head_commit is not available
     const message = pr.title;
     const id = pr.head.sha;
@@ -50,6 +54,48 @@ function getCommit() {
         timestamp,
         url,
     };
+    /* eslint-enable @typescript-eslint/camelcase */
+}
+async function getHeadCommit(githubToken) {
+    const octocat = new github.GitHub(githubToken);
+    const { status, data } = await octocat.repos.getCommit({
+        owner: github.context.repo.owner,
+        repo: github.context.repo.repo,
+        ref: github.context.ref,
+    });
+    if (status !== 200 && status !== 304) {
+        throw new Error(`Could not fetch the head commit. Received code: ${status}`);
+    }
+    const { commit } = data;
+    const author = {
+        name: commit.author.name,
+        username: commit.author.name,
+    };
+    const committer = {
+        name: commit.committer.name,
+        username: commit.committer.name,
+    };
+    return {
+        author,
+        committer,
+        id: data.sha,
+        message: commit.message,
+        timestamp: commit.author.date,
+        url: data.html_url,
+    };
+}
+async function getCommit(githubToken) {
+    /* eslint-disable @typescript-eslint/camelcase */
+    if (github.context.payload.head_commit) {
+        return github.context.payload.head_commit;
+    }
+    if (github.context.payload.pull_request) {
+        return getCommitFromPr(github.context.payload.pull_request);
+    }
+    if (!githubToken) {
+        throw new Error(`No commit information is found in payload: ${JSON.stringify(github.context.payload, null, 2)} and 'github-token' input is not set`);
+    }
+    return await getHeadCommit(githubToken);
     /* eslint-enable @typescript-eslint/camelcase */
 }
 function extractCargoResult(output) {
@@ -249,41 +295,94 @@ function extractCatch2Result(output) {
     }
     return ret;
 }
+function extractRobloxResult(output) {
+    const lines = output.split(/\r?\n/g);
+    const ret = new Array();
+    // Example:
+    //   fib(20) x 11,465 ops/sec ±1.12% (91 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)(roblox-cli version 123.456)
+    //   createObjectBuffer2 with 200 comments x 81.61 ops/sec ±1.70% (69 runs sampled)
+    const reExtract = /^ x ([0-9,.]+)\s+(\S+)\s+((?:±|\+-)[^%]+%) \((\d+) runs sampled\)(\(roblox-cli version ([\d.?]+)\))?$/; // Note: Extract parts after benchmark name
+    const reComma = /,/g;
+    for (const line of lines) {
+        const idx = line.lastIndexOf(' x ');
+        if (idx === -1) {
+            continue;
+        }
+        const name = line.slice(0, idx);
+        const rest = line.slice(idx);
+        const m = rest.match(reExtract);
+        if (m === null) {
+            continue;
+        }
+        const value = parseFloat(m[1].replace(reComma, ''));
+        const unit = m[2];
+        const range = m[3];
+        const extra = `${m[4]} samples\nroblox-cli version: ${m[6] || 'unknown'}`;
+        if (isRobloxUnit(unit)) {
+            ret.push({ name, value, range, unit, extra, type: 'roblox' });
+        }
+    }
+    return ret;
+}
 async function extractResult(config) {
     const output = await fs_1.promises.readFile(config.outputFilePath, 'utf8');
-    const { tool } = config;
-    let benches;
+    const { tool, githubToken } = config;
+    let benchmark;
     switch (tool) {
         case 'cargo':
-            benches = extractCargoResult(output);
+            benchmark = {
+                tool,
+                benches: extractCargoResult(output),
+            };
             break;
         case 'go':
-            benches = extractGoResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoResult(output),
+            };
             break;
         case 'benchmarkjs':
-            benches = extractBenchmarkJsResult(output);
+            benchmark = {
+                tool,
+                benches: extractBenchmarkJsResult(output),
+            };
             break;
         case 'pytest':
-            benches = extractPytestResult(output);
+            benchmark = {
+                tool,
+                benches: extractPytestResult(output),
+            };
             break;
         case 'googlecpp':
-            benches = extractGoogleCppResult(output);
+            benchmark = {
+                tool,
+                benches: extractGoogleCppResult(output),
+            };
             break;
         case 'catch2':
-            benches = extractCatch2Result(output);
+            benchmark = {
+                tool,
+                benches: extractCatch2Result(output),
+            };
+            break;
+        case 'roblox':
+            benchmark = {
+                tool,
+                benches: extractRobloxResult(output),
+            };
             break;
         default:
             throw new Error(`FATAL: Unexpected tool: '${tool}'`);
     }
-    if (benches.length === 0) {
+    if (benchmark.benches.length === 0) {
         throw new Error(`No benchmark result was found in ${config.outputFilePath}. Benchmark output was '${output}'`);
     }
-    const commit = getCommit();
+    const commit = await getCommit(githubToken);
     return {
         commit,
         date: Date.now(),
-        tool,
-        benches,
+        ...benchmark,
     };
 }
 exports.extractResult = extractResult;
