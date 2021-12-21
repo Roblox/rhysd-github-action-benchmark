@@ -2,7 +2,7 @@ name: Julia Example with BenchmarkTools.jl
 on:
   push:
     branches:
-      - master
+      - none
 
 permissions:
   contents: write
