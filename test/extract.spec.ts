@@ -1,11 +1,9 @@
 import * as path from 'path';
 import { strict as A } from 'assert';
-import mock = require('mock-require');
-import { ToolType } from '../src/config';
-import { BenchmarkResult } from '../src/extract';
+import { Config, ToolType } from '../src/config';
+import { BenchmarkResult, extractResult, RobloxUnit } from '../src/extract';
 
 const dummyWebhookPayload = {
-    // eslint-disable-next-line @typescript-eslint/camelcase
     head_commit: {
         author: null,
         committer: null,
@@ -15,20 +13,41 @@ const dummyWebhookPayload = {
         url: 'https://github.com/dummy/repo',
     },
 } as { [key: string]: any };
+let dummyCommitData = {};
+class DummyGitHub {
+    repos = {
+        getCommit: () => {
+            return {
+                status: 200,
+                data: dummyCommitData,
+            };
+        },
+    };
+}
 const dummyGitHubContext = {
     payload: dummyWebhookPayload,
+    repo: {
+        owner: 'dummy',
+        repo: 'repo',
+    },
+    ref: 'abcd1234',
 };
 
-mock('@actions/github', { context: dummyGitHubContext });
+jest.mock('@actions/github', () => ({
+    get context() {
+        return dummyGitHubContext;
+    },
+    get GitHub() {
+        return DummyGitHub;
+    },
+}));
 
-const { extractResult, RobloxUnit } = require('../src/extract');
-
-describe('extractResult()', function() {
-    after(function() {
-        mock.stop('@actions/github');
+describe('extractResult()', function () {
+    afterAll(function () {
+        jest.unmock('@actions/github');
     });
 
-    afterEach(function() {
+    afterEach(function () {
         dummyGitHubContext.payload = dummyWebhookPayload;
     });
 
@@ -101,6 +120,24 @@ describe('extractResult()', function() {
                     unit: 'ns/op',
                     value: 40537.123,
                     extra: '30000 times',
+                },
+                {
+                    name: 'BenchmarkFib/my_tabled_benchmark_-_10',
+                    unit: 'ns/op',
+                    value: 325,
+                    extra: '5000000 times\n8 procs',
+                },
+                {
+                    name: 'BenchmarkFib/my_tabled_benchmark_-_20',
+                    unit: 'ns/op',
+                    value: 40537.123,
+                    extra: '30000 times',
+                },
+                {
+                    name: 'BenchmarkFib/my/tabled/benchmark_-_20',
+                    unit: 'ns/op',
+                    value: 40537.456,
+                    extra: '30001 times',
                 },
             ],
         },
@@ -217,6 +254,62 @@ describe('extractResult()', function() {
                     range: '± 0',
                     unit: 'ns',
                     value: 1,
+                },
+            ],
+        },
+        {
+            tool: 'julia',
+            file: 'julia_output.json',
+            expected: [
+                {
+                    extra: 'gctime=0\nmemory=0\nallocs=0\nparams={"gctrial":true,"time_tolerance":0.05,"samples":10000,"evals":390,"gcsample":false,"seconds":5,"overhead":0,"memory_tolerance":0.01}',
+                    name: 'fib/10',
+                    unit: 'ns',
+                    value: 246.03846153846155,
+                },
+                {
+                    extra: 'gctime=0\nmemory=0\nallocs=0\nparams={"gctrial":true,"time_tolerance":0.05,"samples":10000,"evals":1,"gcsample":false,"seconds":5,"overhead":0,"memory_tolerance":0.01}',
+                    name: 'fib/20',
+                    unit: 'ns',
+                    value: 31028,
+                },
+            ],
+        },
+        {
+            tool: 'customBiggerIsBetter',
+            expected: [
+                {
+                    name: 'My Custom Bigger Is Better Benchmark - Throughput',
+                    unit: 'req/s',
+                    value: 70,
+                    range: undefined,
+                    extra: undefined,
+                },
+                {
+                    name: 'My Custom Bigger Is Better Benchmark - Free Memory',
+                    unit: 'Megabytes',
+                    value: 150,
+                    range: '3',
+                    extra: 'Optional Value #1: 25\nHelpful Num #2: 100\nAnything Else!',
+                },
+            ],
+        },
+        {
+            tool: 'customSmallerIsBetter',
+            expected: [
+                {
+                    name: 'My Custom Smaller Is Better Benchmark - CPU Load',
+                    unit: 'Percent',
+                    value: 50,
+                    range: '5%',
+                    extra: 'My Optional Information for the tooltip',
+                },
+                {
+                    name: 'My Custom Smaller Is Better Benchmark - Memory Used',
+                    unit: 'Megabytes',
+                    value: 100,
+                    range: undefined,
+                    extra: undefined,
                 },
             ],
         },
@@ -409,13 +502,13 @@ describe('extractResult()', function() {
     ];
 
     for (const test of normalCases) {
-        it('extracts benchmark output from ' + test.tool, async function() {
+        it(`extracts benchmark output from ${test.tool}`, async function () {
             const file = test.file ?? `${test.tool}_output.txt`;
             const outputFilePath = path.join(__dirname, 'data', 'extract', file);
             const config = {
                 tool: test.tool,
                 outputFilePath,
-            };
+            } as Config;
             const bench = await extractResult(config);
 
             A.equal(bench.commit, dummyWebhookPayload.head_commit);
@@ -425,27 +518,27 @@ describe('extractResult()', function() {
         });
     }
 
-    it('raises an error on unexpected tool', async function() {
+    it('raises an error on unexpected tool', async function () {
         const config = {
-            tool: 'foo',
+            tool: 'foo' as any,
             outputFilePath: path.join(__dirname, 'data', 'extract', 'go_output.txt'),
-        };
+        } as Config;
         await A.rejects(extractResult(config), /^Error: FATAL: Unexpected tool: 'foo'$/);
     });
 
-    it('raises an error when output file is not readable', async function() {
+    it('raises an error when output file is not readable', async function () {
         const config = {
             tool: 'go',
             outputFilePath: 'path/does/not/exist.txt',
-        };
+        } as Config;
         await A.rejects(extractResult(config));
     });
 
-    it('raises an error when no output found', async function() {
+    it('raises an error when no output found', async function () {
         const config = {
             tool: 'cargo',
             outputFilePath: path.join(__dirname, 'data', 'extract', 'go_output.txt'),
-        };
+        } as Config;
         await A.rejects(extractResult(config), /^Error: No benchmark result was found in /);
     });
 
@@ -455,7 +548,7 @@ describe('extractResult()', function() {
         file: string;
         expected: RegExp;
     }> = [
-        ...(['pytest', 'googlecpp'] as const).map(tool => ({
+        ...(['pytest', 'googlecpp', 'customBiggerIsBetter', 'customSmallerIsBetter'] as const).map((tool) => ({
             it: `raises an error when output file is not in JSON with tool '${tool}'`,
             tool,
             file: 'go_output.txt',
@@ -464,15 +557,15 @@ describe('extractResult()', function() {
     ];
 
     for (const t of toolSpecificErrorCases) {
-        it(t.it, async function() {
+        it(t.it, async function () {
             // Note: go_output.txt is not in JSON format!
             const outputFilePath = path.join(__dirname, 'data', 'extract', t.file);
-            const config = { tool: t.tool, outputFilePath };
+            const config = { tool: t.tool, outputFilePath } as Config;
             await A.rejects(extractResult(config), t.expected);
         });
     }
 
-    it('collects the commit information from pull_request payload as fallback', async function() {
+    it('collects the commit information from pull_request payload as fallback', async function () {
         dummyGitHubContext.payload = {
             pull_request: {
                 title: 'this is title',
@@ -492,7 +585,7 @@ describe('extractResult()', function() {
         const config = {
             tool: 'go',
             outputFilePath,
-        };
+        } as Config;
         const { commit } = await extractResult(config);
         const expectedUser = {
             name: 'user',
@@ -506,13 +599,67 @@ describe('extractResult()', function() {
         A.equal(commit.url, 'https://github.com/dummy/repo/pull/1/commits/abcdef0123456789');
     });
 
-    it('raises an error when commit information is not found in webhook payload', async function() {
+    it('collects the commit information from current head via REST API as fallback when githubToken is provided', async function () {
+        dummyGitHubContext.payload = {};
+        dummyCommitData = {
+            author: {
+                login: 'testAuthorLogin',
+            },
+            committer: {
+                login: 'testCommitterLogin',
+            },
+            commit: {
+                author: {
+                    name: 'test author',
+                    date: 'author updated at timestamp',
+                    email: 'author@testdummy.com',
+                },
+                committer: {
+                    name: 'test committer',
+                    // We use the `author.date` instead.
+                    // date: 'committer updated at timestamp',
+                    email: 'committer@testdummy.com',
+                },
+                message: 'test message',
+            },
+            sha: 'abcd1234',
+            html_url: 'https://github.com/dymmy/repo/commit/abcd1234',
+        };
+        const outputFilePath = path.join(__dirname, 'data', 'extract', 'go_output.txt');
+        const config = {
+            tool: 'go',
+            outputFilePath,
+            githubToken: 'abcd1234',
+        } as Config;
+
+        const { commit } = await extractResult(config);
+
+        const expectedCommit = {
+            id: 'abcd1234',
+            message: 'test message',
+            timestamp: 'author updated at timestamp',
+            url: 'https://github.com/dymmy/repo/commit/abcd1234',
+            author: {
+                name: 'test author',
+                username: 'testAuthorLogin',
+                email: 'author@testdummy.com',
+            },
+            committer: {
+                name: 'test committer',
+                username: 'testCommitterLogin',
+                email: 'committer@testdummy.com',
+            },
+        };
+        A.deepEqual(commit, expectedCommit);
+    });
+
+    it('raises an error when commit information is not found in webhook payload and no githubToken is provided', async function () {
         dummyGitHubContext.payload = {};
         const outputFilePath = path.join(__dirname, 'data', 'extract', 'go_output.txt');
         const config = {
             tool: 'go',
             outputFilePath,
-        };
+        } as Config;
         await A.rejects(extractResult(config), /^Error: No commit information is found in payload/);
     });
 });

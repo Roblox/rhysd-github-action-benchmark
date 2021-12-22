@@ -3,7 +3,17 @@ import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
-export type ToolType = 'cargo' | 'go' | 'benchmarkjs' | 'pytest' | 'googlecpp' | 'catch2' | 'roblox';
+export type ToolType =
+    | 'cargo'
+    | 'go'
+    | 'benchmarkjs'
+    | 'pytest'
+    | 'googlecpp'
+    | 'catch2'
+    | 'julia'
+    | 'customBiggerIsBetter'
+    | 'customSmallerIsBetter'
+    | 'roblox';
 export interface Config {
     name: string;
     tool: ToolType;
@@ -24,7 +34,18 @@ export interface Config {
     maxItemsInChart: number | null;
 }
 
-export const VALID_TOOLS: ToolType[] = ['cargo', 'go', 'benchmarkjs', 'pytest', 'googlecpp', 'catch2', 'roblox'];
+export const VALID_TOOLS: ToolType[] = [
+    'cargo',
+    'go',
+    'benchmarkjs',
+    'pytest',
+    'googlecpp',
+    'catch2',
+    'julia',
+    'customBiggerIsBetter',
+    'customSmallerIsBetter',
+    'roblox',
+];
 const RE_UINT = /^\d+$/;
 
 function validateToolType(tool: string): asserts tool is ToolType {
@@ -131,7 +152,7 @@ function getCommaSeparatedInput(name: string): string[] {
     if (!input) {
         return [];
     }
-    return input.split(',').map(s => s.trim());
+    return input.split(',').map((s) => s.trim());
 }
 
 function validateAlertCommentCcUsers(users: string[]) {
