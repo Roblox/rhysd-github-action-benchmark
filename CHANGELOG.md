@@ -1,3 +1,28 @@
+## Unreleased
+
+<a name="v1.13.0"></a>
+# [v1.13.0](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.13.0) - 17 Feb 2022
+
+- **Feat:** Updated urls to support GHES (#104)
+- **Feat:** Add support for BenchmarkDotNet (#109)
+- **Chore** Bump node-fetch from 2.6.6 to 2.6.7 (#107)
+
+<a name="v1.12.0"></a>
+# [v1.12.0](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.12.0) - 28 Jan 2022
+
+- **Feat:** Support private repositories (#105)
+- **Chore** Bump action runner to node v16 (#106)
+
+<a name="v1.11.3"></a>
+# [v1.11.3](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.11.3) - 31 Dec 2021
+
+- **Fix:** Fix trailing whitespace characters in cargo benchmarks (#97)
+
+<a name="v1.11.2"></a>
+# [v1.11.2](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.11.2) - 28 Dec 2021
+
+- **Fix:** Added option to use Rust benchmark names with spaces (#94)
+
 <a name="v1.11.1"></a>
 # [v1.11.1](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.11.1) - 04 Dec 2021
 
