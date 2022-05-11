@@ -7,10 +7,12 @@ export type ToolType =
     | 'cargo'
     | 'go'
     | 'benchmarkjs'
+    | 'benchmarkluau'
     | 'pytest'
     | 'googlecpp'
     | 'catch2'
     | 'julia'
+    | 'benchmarkdotnet'
     | 'customBiggerIsBetter'
     | 'customSmallerIsBetter'
     | 'roblox';
@@ -38,10 +40,12 @@ export const VALID_TOOLS: ToolType[] = [
     'cargo',
     'go',
     'benchmarkjs',
+    'benchmarkluau',
     'pytest',
     'googlecpp',
     'catch2',
     'julia',
+    'benchmarkdotnet',
     'customBiggerIsBetter',
     'customSmallerIsBetter',
     'roblox',

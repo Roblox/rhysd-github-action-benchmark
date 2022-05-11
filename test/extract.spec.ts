@@ -74,6 +74,66 @@ describe('extractResult()', function () {
             ],
         },
         {
+            tool: 'cargo',
+            file: 'cargo_output2.txt',
+            expected: [
+                {
+                    name: 'bench_engine_new',
+                    range: '± 70126',
+                    unit: 'ns/iter',
+                    value: 211834,
+                },
+                {
+                    name: 'bench_engine_new_raw',
+                    range: '± 18',
+                    unit: 'ns/iter',
+                    value: 197,
+                },
+                {
+                    name: 'bench_engine_new_raw_core',
+                    range: '± 31',
+                    unit: 'ns/iter',
+                    value: 196,
+                },
+                {
+                    name: 'bench_engine_register_fn',
+                    range: '± 82',
+                    unit: 'ns/iter',
+                    value: 493,
+                },
+            ],
+        },
+        {
+            tool: 'cargo',
+            file: 'criterion_output.txt',
+            expected: [
+                {
+                    name: 'Create Realm',
+                    range: '± 4',
+                    unit: 'ns/iter',
+                    value: 329,
+                },
+                {
+                    name: 'Symbols (Execution)',
+                    range: '± 47',
+                    unit: 'ns/iter',
+                    value: 3268,
+                },
+                {
+                    name: 'For loop (Execution)',
+                    range: '± 123',
+                    unit: 'ns/iter',
+                    value: 12314,
+                },
+                {
+                    name: 'Fibonacci (Execution)',
+                    range: '± 10166',
+                    unit: 'ns/iter',
+                    value: 1672496,
+                },
+            ],
+        },
+        {
             tool: 'catch2',
             expected: [
                 {
@@ -164,6 +224,32 @@ describe('extractResult()', function () {
                     unit: 'ops/sec',
                     value: 81.61,
                     extra: '69 samples',
+                },
+            ],
+        },
+        {
+            tool: 'benchmarkluau',
+            expected: [
+                {
+                    name: 'base64',
+                    range: '±0.636%',
+                    unit: 'ms',
+                    value: 15.041,
+                    extra: 'luau',
+                },
+                {
+                    name: 'chess',
+                    range: '±0.212%',
+                    unit: 'ms',
+                    value: 69.56,
+                    extra: 'luau',
+                },
+                {
+                    name: 'life',
+                    range: '±0.187%',
+                    unit: 'ms',
+                    value: 85.089,
+                    extra: 'luau',
                 },
             ],
         },
@@ -272,6 +358,24 @@ describe('extractResult()', function () {
                     name: 'fib/20',
                     unit: 'ns',
                     value: 31028,
+                },
+            ],
+        },
+        {
+            tool: 'benchmarkdotnet',
+            file: 'benchmarkdotnet.json',
+            expected: [
+                {
+                    name: 'Sample.Benchmarks.Fib10',
+                    range: '± 0.1981212530783709',
+                    unit: 'ns',
+                    value: 24.4202085009643,
+                },
+                {
+                    name: 'Sample.Benchmarks.Fib20',
+                    range: '± 0.7903737021529575',
+                    unit: 'ns',
+                    value: 51.52008151549559,
                 },
             ],
         },
@@ -502,7 +606,7 @@ describe('extractResult()', function () {
     ];
 
     for (const test of normalCases) {
-        it(`extracts benchmark output from ${test.tool}`, async function () {
+        it(`extracts benchmark output from ${test.tool}${test.file ? ` - ${test.file}` : ''}`, async function () {
             const file = test.file ?? `${test.tool}_output.txt`;
             const outputFilePath = path.join(__dirname, 'data', 'extract', file);
             const config = {

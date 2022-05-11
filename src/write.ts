@@ -64,6 +64,8 @@ function biggerIsBetter(tool: ToolType, bench: BenchmarkResult): boolean {
             return false;
         case 'benchmarkjs':
             return true;
+        case 'benchmarkluau':
+            return false;
         case 'pytest':
             return true;
         case 'googlecpp':
@@ -71,6 +73,8 @@ function biggerIsBetter(tool: ToolType, bench: BenchmarkResult): boolean {
         case 'catch2':
             return false;
         case 'julia':
+            return false;
+        case 'benchmarkdotnet':
             return false;
         case 'customBiggerIsBetter':
             return true;
@@ -129,13 +133,14 @@ function findAlerts(curSuite: Benchmark, prevSuite: Benchmark, threshold: number
 
 function getCurrentRepoMetadata() {
     const { repo, owner } = github.context.repo;
+    const serverUrl = git.getServerUrl(github.context.payload.repository?.html_url);
     return {
         name: repo,
         owner: {
             login: owner,
         },
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        html_url: `https://github.com/${owner}/${repo}`,
+        html_url: `${serverUrl}/${owner}/${repo}`,
     };
 }
 
@@ -451,9 +456,9 @@ async function writeBenchmarkToGitHubPagesWithRetry(
 }
 
 async function writeBenchmarkToGitHubPages(bench: Benchmark, config: Config): Promise<Benchmark | null> {
-    const { ghPagesBranch, skipFetchGhPages } = config;
+    const { ghPagesBranch, skipFetchGhPages, githubToken } = config;
     if (!skipFetchGhPages) {
-        await git.cmd('fetch', 'origin', `${ghPagesBranch}:${ghPagesBranch}`);
+        await git.fetch(githubToken, ghPagesBranch);
     }
     await git.cmd('switch', ghPagesBranch);
     try {

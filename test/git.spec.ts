@@ -1,5 +1,5 @@
 import { deepStrictEqual as eq, notDeepStrictEqual as neq, strict as A } from 'assert';
-import { cmd, pull, push } from '../src/git';
+import { cmd, getServerUrl, pull, push, fetch } from '../src/git';
 
 interface ExecOptions {
     listeners: {
@@ -38,10 +38,20 @@ const gitHubContext = {
         repo: 'repo',
         owner: 'user',
     },
+    payload: {
+        repository: {
+            html_url: 'https://github.com/user/benchmark-action/github-action-benchmark',
+        },
+    },
 } as {
     repo: {
         repo: string;
         owner: string;
+    };
+    payload: {
+        repository: {
+            html_url: string;
+        };
     };
 };
 
@@ -71,13 +81,14 @@ jest.mock('@actions/github', () => ({
 }));
 
 const ok: (x: any) => asserts x = A.ok;
+const serverUrl = getServerUrl(gitHubContext.payload.repository?.html_url);
 const userArgs = [
     '-c',
     'user.name=github-action-benchmark',
     '-c',
     'user.email=github@users.noreply.github.com',
     '-c',
-    'http.https://github.com/.extraheader=',
+    `http.${serverUrl}/.extraheader=`,
 ];
 
 describe('git', function () {
@@ -173,6 +184,37 @@ describe('git', function () {
             ok(args);
             eq(args[0], 'git');
             eq(args[1], userArgs.concat(['pull', 'origin', 'my-branch', 'opt1', 'opt2']));
+        });
+    });
+
+    describe('fetch()', function () {
+        it('runs `git fetch` with given branch and options with token', async function () {
+            const stdout = await fetch('this-is-token', 'my-branch', 'opt1', 'opt2');
+            const args = fakedExec.lastArgs;
+
+            eq(stdout, 'this is test');
+            ok(args);
+            eq(args[0], 'git');
+            eq(
+                args[1],
+                userArgs.concat([
+                    'fetch',
+                    'https://x-access-token:this-is-token@github.com/user/repo.git',
+                    'my-branch:my-branch',
+                    'opt1',
+                    'opt2',
+                ]),
+            );
+        });
+
+        it('runs `git fetch` with given branch and options without token', async function () {
+            const stdout = await fetch(undefined, 'my-branch', 'opt1', 'opt2');
+            const args = fakedExec.lastArgs;
+
+            eq(stdout, 'this is test');
+            ok(args);
+            eq(args[0], 'git');
+            eq(args[1], userArgs.concat(['fetch', 'origin', 'my-branch:my-branch', 'opt1', 'opt2']));
         });
     });
 });
