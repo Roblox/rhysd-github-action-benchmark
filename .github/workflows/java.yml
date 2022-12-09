@@ -41,6 +41,8 @@ jobs:
 
       - name: Store benchmark result - separate results repo
         uses: benchmark-action/github-action-benchmark@v1
+        # disable step as it will fail in the Roblox fork
+        if: false
         with:
           name: JMH Benchmark
           tool: 'jmh'
