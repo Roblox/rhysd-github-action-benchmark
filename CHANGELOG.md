@@ -1,5 +1,18 @@
 ## Unreleased
 
+<a name="v1.15.0"></a>
+# [v1.15.0](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.15.0) - 03 Nov 2022
+
+- **Feat** Add support for Java via JMH (#134)
+- **Chore** Update @actions/core, @actions/exec and @actions/io to the latest version (#137)
+
+<a name="v1.14.0"></a>
+# [v1.14.0](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.14.0) - 28 May 2022
+
+- **Feat** Added benchmark luau support (#123)
+- **Chore** Bump minimist from 1.2.5 to 1.2.6 (#114)
+- **Feat** Implement deploy to another repository (#112)
+
 <a name="v1.13.0"></a>
 # [v1.13.0](https://github.com/benchmark-action/github-action-benchmark/releases/tag/v1.13.0) - 17 Feb 2022
 
