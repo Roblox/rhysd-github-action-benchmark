@@ -1,11 +1,12 @@
 name: CI - separate results repo
 on:
-  push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
+#  push:
+#    branches:
+#      - master
+#  pull_request:
+#    branches:
+#      - master
 
 jobs:
   rust:
@@ -238,49 +239,49 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - run: node ./dist/scripts/ci_validate_modification.js before_data.js 'Catch2 Benchmark' './benchmark-data-repository'
 
-  julia-benchmark:
-    name: Run Julia benchmark example - github.com/benchmark-action/github-action-benchmark-results
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/checkout@v3
-        with:
-          repository: benchmark-action/github-action-benchmark-results
-          ref: 'gh-pages'
-          path: 'dist/other-repo'
-      - uses: actions/setup-node@v3
-        with:
-          node-version: 16
-      - uses: actions/cache@v1
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-      - run: npm ci
-      - run: npm run build
-      - name: Save previous data.js
-        run: |
-          cp ./dist/other-repo/dev/bench/data.js before_data.js
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: '1'
-          arch: x64
-      - name: Run benchmark
-        run: |
-          cd examples/julia
-          julia --project --color=yes -e '
-            using Pkg;
-            Pkg.instantiate();
-            include("fib.jl")'
-      - name: Store benchmark result
-        uses: ./
-        with:
-          name: Julia benchmark
-          tool: 'julia'
-          output-file-path: examples/julia/output.json
-          fail-on-alert: true
-          gh-repository: 'github.com/benchmark-action/github-action-benchmark-results'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: node ./dist/scripts/ci_validate_modification.js before_data.js 'Julia benchmark' './benchmark-data-repository'
+  #  julia-benchmark:
+  #    name: Run Julia benchmark example - github.com/benchmark-action/github-action-benchmark-results
+  #    runs-on: ubuntu-latest
+  #    steps:
+  #      - uses: actions/checkout@v3
+  #      - uses: actions/checkout@v3
+  #        with:
+  #          repository: benchmark-action/github-action-benchmark-results
+  #          ref: 'gh-pages'
+  #          path: 'dist/other-repo'
+  #      - uses: actions/setup-node@v3
+  #        with:
+  #          node-version: 16
+  #      - uses: actions/cache@v1
+  #        with:
+  #          path: ~/.npm
+  #          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+  #      - run: npm ci
+  #      - run: npm run build
+  #      - name: Save previous data.js
+  #        run: |
+  #          cp ./dist/other-repo/dev/bench/data.js before_data.js
+  #      - uses: julia-actions/setup-julia@v1
+  #        with:
+  #          version: '1'
+  #          arch: x64
+  #      - name: Run benchmark
+  #        run: |
+  #          cd examples/julia
+  #          julia --project --color=yes -e '
+  #            using Pkg;
+  #            Pkg.instantiate();
+  #            include("fib.jl")'
+  #      - name: Store benchmark result
+  #        uses: ./
+  #        with:
+  #          name: Julia benchmark
+  #          tool: 'julia'
+  #          output-file-path: examples/julia/output.json
+  #          fail-on-alert: true
+  #          gh-repository: 'github.com/benchmark-action/github-action-benchmark-results'
+  #          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #      - run: node ./dist/scripts/ci_validate_modification.js before_data.js 'Julia benchmark' './benchmark-data-repository'
 
   benchmarkdotnet-framework:
     name: Run Benchmark.Net .Net Benchmark Framework example - github.com/benchmark-action/github-action-benchmark-results
